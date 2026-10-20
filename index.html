@@ -846,6 +846,19 @@
             color: #ffffff;
             border-color: #dc2626;
         }
+
+        .task-text-completed {
+            text-decoration: line-through;
+            color: var(--text-light);
+        }
+        
+        .completion-time {
+            display: block;
+            font-size: 0.75rem;
+            color: #10b981;
+            font-weight: 600;
+            margin-top: 2px;
+        }
     </style>
 </head>
 <body>
@@ -1441,7 +1454,6 @@
 
                         appData = JSON.parse(JSON.stringify(cloudRecord));
                         
-                        // 確保如果雲端沒有 previousTasks，維持預設或空陣列
                         if (!appData.previousTasks) {
                             appData.previousTasks = [...defaultPreviousTasks];
                         }
@@ -2008,14 +2020,15 @@
             } else {
                 appData.tasks.forEach((task, index) => {
                     let timeInfo = (task.done && task.completedAt) ? `<span class="completion-time">✓ Completed: ${task.completedAt}</span>` : '';
-                    let createdInfo = task.createdAt ? `<span class="created-time">Added: ${task.createdAt}</span>` : '';
+                    let createdInfo = task.createdAt ? `<span class="created-time" style="display:block; font-size:0.75rem; color:var(--text-light);">Added: ${task.createdAt}</span>` : '';
+                    let textClass = task.done ? 'task-text-completed' : '';
                     
                     tasksHtml += `
                         <li>
-                            <div class="task-item" onclick="toggleTask(${index})" style="display:flex; align-items:center; gap:8px; cursor:pointer; flex-grow:1;">
-                                <input type="checkbox" ${task.done ? 'checked' : ''} onclick="event.stopPropagation(); toggleTask(${index})">
-                                <div>
-                                    <span class="${task.done ? 'completed' : ''}">${task.name}</span>
+                            <div class="task-item" onclick="toggleTask(${index})" style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; flex-grow:1; text-align: left;">
+                                <input type="checkbox" ${task.done ? 'checked' : ''} onclick="event.stopPropagation(); toggleTask(${index})" style="margin-top:3px; width:auto; cursor:pointer;">
+                                <div style="display:flex; flex-direction:column; text-align: left; width:100%;">
+                                    <span class="${textClass}" style="font-weight:600; text-align: left;">${task.name}</span>
                                     ${createdInfo}
                                     ${timeInfo}
                                 </div>
