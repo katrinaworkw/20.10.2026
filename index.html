@@ -2014,6 +2014,8 @@
         function renderTasksUI() {
             const taskListMain = document.getElementById('mainTaskList');
             let tasksHtml = '';
+            const taskCardObj = document.getElementById('taskCard');
+            const isTaskEditing = taskCardObj && taskCardObj.classList.contains('editing-mode');
 
             if (!appData.tasks || appData.tasks.length === 0) {
                 tasksHtml = `<li class="empty-hint">No cleaning tasks</li>`;
@@ -2023,23 +2025,37 @@
                     let createdInfo = task.createdAt ? `<span class="created-time" style="display:block; font-size:0.75rem; color:var(--text-light);">Added: ${task.createdAt}</span>` : '';
                     let textClass = task.done ? 'task-text-completed' : '';
                     
+                    let taskNameDisplay = '';
+                    if (isTaskEditing) {
+                        taskNameDisplay = `<input type="text" value="${task.name}" onchange="updateTaskName(${index}, this.value)" style="font-weight:600; padding:4px 8px; width:100%;">`;
+                    } else {
+                        taskNameDisplay = `<span class="${textClass}" style="font-weight:600; text-align: left;">${task.name}</span>`;
+                    }
+
+                    let deleteBtnDisplay = isTaskEditing ? `<button type="button" class="btn-delete" onclick="deleteTask(${index})" style="display:inline-block;">🗑️</button>` : '';
+
                     tasksHtml += `
                         <li>
                             <div class="task-item" onclick="toggleTask(${index})" style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; flex-grow:1; text-align: left;">
                                 <input type="checkbox" ${task.done ? 'checked' : ''} onclick="event.stopPropagation(); toggleTask(${index})" style="margin-top:3px; width:auto; cursor:pointer;">
                                 <div style="display:flex; flex-direction:column; text-align: left; width:100%;">
-                                    <span class="${textClass}" style="font-weight:600; text-align: left;">${task.name}</span>
+                                    ${taskNameDisplay}
                                     ${createdInfo}
                                     ${timeInfo}
                                 </div>
                             </div>
-                            <button type="button" class="btn-delete" onclick="deleteTask(${index})" style="display:inline-block;">🗑️</button>
+                            ${deleteBtnDisplay}
                         </li>
                     `;
                 });
             }
 
             if (taskListMain) taskListMain.innerHTML = tasksHtml;
+        }
+
+        function updateTaskName(index, newName) {
+            if (!appData.tasks[index]) return;
+            appData.tasks[index].name = newName.trim();
         }
 
         function renderNotesUI() {
