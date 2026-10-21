@@ -661,24 +661,76 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        }
+
+        .food-grid-list li.dragging {
+            opacity: 0.85;
+            background: #fdf2f8;
+            border: 2px dashed #f472b6;
+            box-shadow: 0 8px 20px rgba(244, 114, 182, 0.25);
+            transform: scale(1.02);
+        }
+
+        .food-grid-list li.drag-over {
+            border-top: 2px solid #f472b6;
+            background-color: #fff1f2;
         }
 
         .item-list {
             list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
 
         .item-list li {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 8px;
-            border-bottom: 1px solid #f1f5f9;
+            padding: 10px 12px;
+            border: 1px solid #f1f5f9;
+            border-radius: 12px;
             font-size: 0.9rem;
             gap: 8px;
+            background: #ffffff;
+            transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
         }
 
-        .item-list li:last-child {
-            border-bottom: none;
+        .item-list li.dragging {
+            opacity: 0.85;
+            background: #fdf2f8;
+            border: 2px dashed #f472b6;
+            box-shadow: 0 8px 20px rgba(244, 114, 182, 0.25);
+            transform: scale(1.02);
+        }
+
+        .item-list li.drag-over {
+            border-top: 2px solid #f472b6;
+            background-color: #fff1f2;
+        }
+
+        .drag-handle {
+            cursor: grab;
+            color: #cbd5e1;
+            font-size: 1.1rem;
+            padding: 4px 8px;
+            border-radius: 6px;
+            user-select: none;
+            display: none;
+            transition: color 0.2s, background 0.2s;
+        }
+        .drag-handle:hover {
+            color: #9d174d;
+            background: #fce7f3;
+        }
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+        .card.editing-mode .drag-handle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .btn-action {
@@ -732,20 +784,6 @@
 
         .card.editing-mode .btn-delete {
             display: inline-block;
-        }
-
-        .btn-move {
-            background: #f1f5f9;
-            color: #475569;
-            border: 1px solid #cbd5e1;
-            padding: 2px 6px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.75rem;
-            font-weight: 700;
-        }
-        .btn-move:hover {
-            background: #e2e8f0;
         }
 
         .qty-stepper {
@@ -1140,8 +1178,11 @@
         <!-- Tab 3: Shopping Sub-page -->
         <div id="tab-inventoryTab" class="tab-content">
             <div class="grid-container">
-                <div class="card">
-                    <h2>📦 Household Inventory</h2>
+                <div class="card" id="inventoryCard">
+                    <div class="card-header-flex">
+                        <h2>📦 Household Inventory</h2>
+                        <button type="button" class="btn-edit-toggle" onclick="toggleCardEdit('inventoryCard')">✏️</button>
+                    </div>
                     <div class="input-group">
                         <input type="text" id="inventoryName" placeholder="Item name">
                         <select id="inventoryStatusSelect" class="select-status status-25" onchange="this.className='select-status ' + getBadgeClass(this.value)">
@@ -1901,7 +1942,7 @@
             foodStockWidgetList.innerHTML = '';
             
             const foodCardObj = document.getElementById('foodCard');
-            const isFoodCardEditing = foodCardObj && foodCardObj.classList.contains('editing-mode');
+            const isFoodEditing = foodCardObj && foodCardObj.classList.contains('editing-mode');
 
             if (!appData.foodStock || appData.foodStock.length === 0) {
                 foodStockWidgetList.innerHTML = `<li class="empty-hint" style="grid-column: span 2;">No food stock recorded</li>`;
@@ -1910,51 +1951,65 @@
                     let urgentClass = item.urgent ? 'btn-urgent-toggle active' : 'btn-urgent-toggle';
                     let currentQty = (item.qty !== undefined && item.qty !== null) ? item.qty : 1;
                     
-                    if (isFoodCardEditing) {
-                        foodStockWidgetList.innerHTML += `
-                            <li>
-                                <div style="display:flex; align-items:center; flex-grow:1; gap:6px;">
-                                    <button type="button" class="${urgentClass}" onclick="toggleFoodStockUrgent(${index})">!</button>
-                                    <input type="text" value="${item.name}" onchange="updateFoodStockName(${index}, this.value)" style="font-weight:600; padding:4px 8px;">
+                    let deleteBtn = isFoodEditing ? `
+                        <button type="button" class="btn-delete" style="display:inline-block;" onclick="deleteFoodStock(${index})">×</button>
+                    ` : '';
+
+                    foodStockWidgetList.innerHTML += `
+                        <li draggable="${isFoodEditing ? 'true' : 'false'}" 
+                            data-index="${index}"
+                            ondragstart="handleFoodDragStart(event)" 
+                            ondragover="handleFoodDragOver(event)" 
+                            ondragleave="handleFoodDragLeave(event)"
+                            ondrop="handleFoodDrop(event)" 
+                            ondragend="handleFoodDragEnd(event)">
+                            <div style="display:flex; align-items:center; gap:6px; flex-grow:1; min-width:0;">
+                                <span class="drag-handle" title="Drag to reorder">☰</span>
+                                <button type="button" class="${urgentClass}" onclick="toggleFoodStockUrgent(${index})">!</button>
+                                <span class="${item.urgent ? 'urgent-item' : ''}" style="font-weight:600; word-break:break-word;">${item.name}</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                                <div class="qty-stepper">
+                                    <button type="button" class="qty-btn" onclick="changeFoodStockQty(${index}, -1)">-</button>
+                                    <div class="qty-display">${currentQty}</div>
+                                    <button type="button" class="qty-btn" onclick="changeFoodStockQty(${index}, 1)">+</button>
                                 </div>
-                                <div style="display: flex; align-items: center; gap: 6px; margin-left: 6px;">
-                                    <button type="button" class="btn-move" onclick="moveFoodStock(${index}, -1)" ${index === 0 ? 'disabled style="opacity:0.4;"' : ''}>⬆️</button>
-                                    <button type="button" class="btn-move" onclick="moveFoodStock(${index}, 1)" ${index === appData.foodStock.length - 1 ? 'disabled style="opacity:0.4;"' : ''}>⬇️</button>
-                                    <button type="button" class="btn-delete" style="display:inline-block;" onclick="deleteFoodStock(${index})">×</button>
-                                </div>
-                            </li>
-                        `;
-                    } else {
-                        foodStockWidgetList.innerHTML += `
-                            <li>
-                                <div style="display:flex; align-items:center;">
-                                    <button type="button" class="${urgentClass}" onclick="toggleFoodStockUrgent(${index})">!</button>
-                                    <span class="${item.urgent ? 'urgent-item' : ''}" style="font-weight:600;">${item.name}</span>
-                                </div>
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <div class="qty-stepper">
-                                        <button type="button" class="qty-btn" onclick="changeFoodStockQty(${index}, -1)">-</button>
-                                        <div class="qty-display">${currentQty}</div>
-                                        <button type="button" class="qty-btn" onclick="changeFoodStockQty(${index}, 1)">+</button>
-                                    </div>
-                                </div>
-                            </li>
-                        `;
-                    }
+                                ${deleteBtn}
+                            </div>
+                        </li>
+                    `;
                 });
             }
 
             const invList = document.getElementById('inventoryList');
             invList.innerHTML = '';
+            
+            const inventoryCardObj = document.getElementById('inventoryCard');
+            const isInventoryEditing = inventoryCardObj && inventoryCardObj.classList.contains('editing-mode');
+
             if (!appData.inventory || appData.inventory.length === 0) {
                 invList.innerHTML = `<li class="empty-hint">No inventory records</li>`;
             } else {
                 appData.inventory.forEach((item, index) => {
                     let badgeClass = getBadgeClass(item.status);
+                    
+                    let deleteBtn = isInventoryEditing ? `
+                        <button type="button" class="btn-delete" style="display:inline-block;" onclick="deleteInventory(${index})">×</button>
+                    ` : '';
+
                     invList.innerHTML += `
-                        <li>
-                            <span>${item.name}</span>
-                            <div style="display: flex; align-items: center; gap: 10px;">
+                        <li draggable="${isInventoryEditing ? 'true' : 'false'}" 
+                            data-index="${index}"
+                            ondragstart="handleDragStart(event)" 
+                            ondragover="handleDragOver(event)" 
+                            ondragleave="handleDragLeave(event)"
+                            ondrop="handleDrop(event)" 
+                            ondragend="handleDragEnd(event)">
+                            <div style="display:flex; align-items:center; gap:8px; flex-grow:1;">
+                                <span class="drag-handle" title="Drag to reorder">☰</span>
+                                <span style="font-weight: 600;">${item.name}</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
                                 <select class="select-status ${badgeClass}" onchange="updateInventoryStatus(${index}, this.value)">
                                     <option value="0" ${item.status === '0' ? 'selected' : ''}>0</option>
                                     <option value="25%" ${item.status === '25%' ? 'selected' : ''}>25%</option>
@@ -1963,7 +2018,7 @@
                                     <option value="1.5" ${item.status === '1.5' ? 'selected' : ''}>1.5</option>
                                     <option value="2+" ${item.status === '2+' ? 'selected' : ''}>2+</option>
                                 </select>
-                                <button type="button" class="btn-delete" style="display:inline-block;" onclick="deleteInventory(${index})">×</button>
+                                ${deleteBtn}
                             </div>
                         </li>
                     `;
@@ -1972,7 +2027,14 @@
 
             const shopList = document.getElementById('shoppingList');
             shopList.innerHTML = '';
-            const lowInventoryItems = (appData.inventory || []).filter(i => i.status === '0' || i.status === '25%' || i.status === '50%' || i.status === '1');
+            
+            let lowInventoryItems = (appData.inventory || []).filter(i => i.status === '0' || i.status === '25%' || i.status === '50%' || i.status === '1');
+            
+            const statusOrder = { '0': 1, '25%': 2, '50%': 3, '1': 4 };
+            lowInventoryItems.sort((a, b) => {
+                return (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
+            });
+
             const customShopping = appData.customShopping || [];
 
             if (lowInventoryItems.length === 0 && customShopping.length === 0) {
@@ -1996,6 +2058,94 @@
                     `;
                 });
             }
+        }
+
+        let draggedIndex = null;
+
+        function handleDragStart(e) {
+            draggedIndex = parseInt(e.currentTarget.getAttribute('data-index'));
+            e.currentTarget.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            const targetLi = e.currentTarget.closest('li');
+            if (targetLi) {
+                targetLi.classList.add('drag-over');
+            }
+        }
+
+        function handleDragLeave(e) {
+            const targetLi = e.currentTarget.closest('li');
+            if (targetLi) {
+                targetLi.classList.remove('drag-over');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const targetLi = e.currentTarget.closest('li');
+            if (!targetLi) return;
+            targetLi.classList.remove('drag-over');
+            const targetIndex = parseInt(targetLi.getAttribute('data-index'));
+            
+            if (draggedIndex !== null && draggedIndex !== targetIndex) {
+                let movedItem = appData.inventory.splice(draggedIndex, 1)[0];
+                appData.inventory.splice(targetIndex, 0, movedItem);
+                renderUI();
+            }
+        }
+
+        function handleDragEnd(e) {
+            e.currentTarget.classList.remove('dragging');
+            document.querySelectorAll('#inventoryList li').forEach(li => li.classList.remove('drag-over'));
+            draggedIndex = null;
+        }
+
+        let foodDraggedIndex = null;
+
+        function handleFoodDragStart(e) {
+            foodDraggedIndex = parseInt(e.currentTarget.getAttribute('data-index'));
+            e.currentTarget.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleFoodDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            const targetLi = e.currentTarget.closest('li');
+            if (targetLi) {
+                targetLi.classList.add('drag-over');
+            }
+        }
+
+        function handleFoodDragLeave(e) {
+            const targetLi = e.currentTarget.closest('li');
+            if (targetLi) {
+                targetLi.classList.remove('drag-over');
+            }
+        }
+
+        function handleFoodDrop(e) {
+            e.preventDefault();
+            const targetLi = e.currentTarget.closest('li');
+            if (!targetLi) return;
+            targetLi.classList.remove('drag-over');
+            const targetIndex = parseInt(targetLi.getAttribute('data-index'));
+            
+            if (foodDraggedIndex !== null && foodDraggedIndex !== targetIndex) {
+                let movedItem = appData.foodStock.splice(foodDraggedIndex, 1)[0];
+                appData.foodStock.splice(targetIndex, 0, movedItem);
+                renderUI();
+            }
+        }
+
+        function handleFoodDragEnd(e) {
+            e.currentTarget.classList.remove('dragging');
+            document.querySelectorAll('#foodStockWidgetList li').forEach(li => li.classList.remove('drag-over'));
+            foodDraggedIndex = null;
         }
 
         function deletePreviousMealDate(dateStr) {
@@ -2027,7 +2177,7 @@
                     
                     let taskNameDisplay = '';
                     if (isTaskEditing) {
-                        taskNameDisplay = `<input type="text" value="${task.name}" onchange="updateTaskName(${index}, this.value)" style="font-weight:600; padding:4px 8px; width:100%;">`;
+                        taskNameDisplay = `<input type="text" value="${task.name}" oninput="updateTaskName(${index}, this.value)" onclick="event.stopPropagation();" style="font-weight:600; padding:4px 8px; width:100%;">`;
                     } else {
                         taskNameDisplay = `<span class="${textClass}" style="font-weight:600; text-align: left;">${task.name}</span>`;
                     }
@@ -2055,7 +2205,7 @@
 
         function updateTaskName(index, newName) {
             if (!appData.tasks[index]) return;
-            appData.tasks[index].name = newName.trim();
+            appData.tasks[index].name = newName;
         }
 
         function renderNotesUI() {
@@ -2236,15 +2386,6 @@
         function updateFoodStockName(index, newName) {
             if (!appData.foodStock[index]) return;
             appData.foodStock[index].name = newName.trim();
-        }
-
-        function moveFoodStock(index, direction) {
-            let targetIndex = index + direction;
-            if (targetIndex < 0 || targetIndex >= appData.foodStock.length) return;
-            let temp = appData.foodStock[index];
-            appData.foodStock[index] = appData.foodStock[targetIndex];
-            appData.foodStock[targetIndex] = temp;
-            renderUI();
         }
 
         function changeFoodStockQty(index, delta) {
