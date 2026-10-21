@@ -1951,6 +1951,17 @@
                     let urgentClass = item.urgent ? 'btn-urgent-toggle active' : 'btn-urgent-toggle';
                     let currentQty = (item.qty !== undefined && item.qty !== null) ? item.qty : 1;
                     
+                    let foodNameDisplay = '';
+                    if (isFoodEditing) {
+                        foodNameDisplay = `
+                            <input type="text" value="${item.name}" onchange="updateFoodStockName(${index}, this.value)" onclick="event.stopPropagation();" style="font-weight:600; padding:4px 8px; width:100%; min-width:80px;">
+                        `;
+                    } else {
+                        foodNameDisplay = `
+                            <span class="${item.urgent ? 'urgent-item' : ''}" style="font-weight:600; word-break:break-word;">${item.name}</span>
+                        `;
+                    }
+
                     let deleteBtn = isFoodEditing ? `
                         <button type="button" class="btn-delete" style="display:inline-block;" onclick="deleteFoodStock(${index})">×</button>
                     ` : '';
@@ -1966,7 +1977,7 @@
                             <div style="display:flex; align-items:center; gap:6px; flex-grow:1; min-width:0;">
                                 <span class="drag-handle" title="Drag to reorder">☰</span>
                                 <button type="button" class="${urgentClass}" onclick="toggleFoodStockUrgent(${index})">!</button>
-                                <span class="${item.urgent ? 'urgent-item' : ''}" style="font-weight:600; word-break:break-word;">${item.name}</span>
+                                ${foodNameDisplay}
                             </div>
                             <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
                                 <div class="qty-stepper">
